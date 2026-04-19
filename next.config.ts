@@ -13,6 +13,15 @@ const nextConfig = {
     ];
   },
 
+  async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+        destination: "http://101.255.12.211:7111/api/:path*",
+      },
+    ];
+  },
+
   experimental: {
     optimizeCss: true,
   },
