@@ -1,5 +1,9 @@
 import api from "@/lib/axios";
 import {
+  deriveDocumentFileName,
+  toPreviewableFileUrl,
+} from "@/lib/utils/file";
+import {
   extractList,
   extractRecord,
   readNullableString,
@@ -39,7 +43,7 @@ function readReceivers(record: UnknownRecord): string[] {
           return (
             readString(item, "receiver_name", "receiverName") ??
             (receiverRecord
-              ? readString(receiverRecord, "name", "username", "email")
+              ? readString(receiverRecord, "name", "username")
               : null) ??
             readString(item, "receiver_id", "receiverId") ??
             "-"
@@ -81,7 +85,7 @@ function readDispositionHistory(record: UnknownRecord): MemorandumDisposisi[] {
         dari_user_nama:
           readString(normalized, "sender_name", "senderName") ??
           (senderRecord
-            ? readString(senderRecord, "name", "username", "email")
+            ? readString(senderRecord, "name", "username")
             : null) ??
           senderId ??
           "-",
@@ -89,7 +93,7 @@ function readDispositionHistory(record: UnknownRecord): MemorandumDisposisi[] {
         ke_user_nama:
           readString(normalized, "receiver_name", "receiverName") ??
           (receiverRecord
-            ? readString(receiverRecord, "name", "username", "email")
+            ? readString(receiverRecord, "name", "username")
             : null) ??
           receiverId ??
           "-",
@@ -126,6 +130,13 @@ function mapMemorandum(record: UnknownRecord, index = 0): Memorandum | null {
 
   if (!memoNumber || !regarding || !memoDate) return null;
 
+  const fallbackFileName = fileValue
+    ? deriveDocumentFileName(fileValue, `memorandum-${memoNumber}`)
+    : "";
+  const previewableFileUrl = fileValue
+    ? toPreviewableFileUrl(fileValue, fallbackFileName)
+    : undefined;
+
   const dispositions = readDispositionHistory(record).sort((left, right) => {
     const leftTime = new Date(left.created_at).getTime();
     const rightTime = new Date(right.created_at).getTime();
@@ -150,7 +161,7 @@ function mapMemorandum(record: UnknownRecord, index = 0): Memorandum | null {
     pembuatMemo:
       readString(record, "sender_name", "senderName", "created_by_name") ??
       (creatorRecord
-        ? readString(creatorRecord, "name", "username", "email")
+        ? readString(creatorRecord, "name", "username")
         : null) ??
       readString(record, "created_by", "createdBy") ??
       "-",
@@ -158,8 +169,8 @@ function mapMemorandum(record: UnknownRecord, index = 0): Memorandum | null {
     keterangan: readString(record, "description") ?? "",
     penerimaTipe: "perorangan",
     penerima: readReceivers(record),
-    fileName: fileValue ?? "",
-    fileUrl: fileValue,
+    fileName: fallbackFileName,
+    fileUrl: previewableFileUrl,
     tenggatWaktu:
       readNullableString(record, "due_date", "dueDate") ??
       latestDispositionWithDueDate?.due_date ??

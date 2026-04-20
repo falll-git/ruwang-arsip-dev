@@ -8,6 +8,7 @@ import { useAppToast } from "@/components/ui/AppToastProvider";
 import UiverseCheckbox from "@/components/ui/UiverseCheckbox";
 import { useAuth } from "@/components/auth/AuthProvider";
 import TenggatWaktuModal from "@/components/surat/TenggatWaktuModal";
+import { readFileAsBase64 } from "@/lib/utils/file";
 import { toApiDateTime } from "@/services/api.utils";
 import { letterPriorityService } from "@/services/letter-priority.service";
 import { suratMasukService } from "@/services/surat-masuk.service";
@@ -166,6 +167,7 @@ export default function InputSuratMasukPage() {
     setIsLoading(true);
 
     try {
+      const encodedFile = file ? await readFileAsBase64(file) : "";
       const dispositions = selectedDisposisi.map((receiverId) => ({
         receiver_id: receiverId,
         sender_id: user.id,
@@ -183,7 +185,7 @@ export default function InputSuratMasukPage() {
         name: formData.namaPengirim.trim(),
         description: formData.keteranganSurat.trim() || undefined,
         address: formData.alamatPengirim.trim(),
-        file: file?.name ?? "",
+        file: encodedFile,
         is_active: true,
         ...(dispositions.length > 0 ? { dispositions } : {}),
       });

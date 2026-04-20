@@ -15,6 +15,7 @@ import FeatureHeader from "@/components/ui/FeatureHeader";
 import UiverseCheckbox from "@/components/ui/UiverseCheckbox";
 import TenggatWaktuModal from "@/components/surat/TenggatWaktuModal";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { readFileAsBase64 } from "@/lib/utils/file";
 import { toApiDateTime } from "@/services/api.utils";
 import { divisionService } from "@/services/division.service";
 import { memorandumService } from "@/services/memorandum.service";
@@ -182,6 +183,11 @@ export default function InputMemorandumPage() {
       return;
     }
 
+    if (!file) {
+      showToast("File memorandum wajib diupload!", "error");
+      return;
+    }
+
     setSavedMemo({
       ...formData,
       receiverIds: selectedUsers,
@@ -218,6 +224,7 @@ export default function InputMemorandumPage() {
       const dueDate = payload.tenggatWaktu
         ? toApiDateTime(payload.tenggatWaktu)
         : undefined;
+      const encodedFile = file ? await readFileAsBase64(file) : "";
 
       await memorandumService.create({
         division_id: savedMemo.divisiPengirim,
@@ -227,7 +234,7 @@ export default function InputMemorandumPage() {
         due_date: dueDate,
         memo_number: savedMemo.noMemo.trim(),
         description: savedMemo.keteranganMemo.trim(),
-        file: savedMemo.fileName ?? "",
+        file: encodedFile,
         status: 0,
         receivers: savedMemo.receiverIds.map((receiverId) => ({
           receiver_id: receiverId,

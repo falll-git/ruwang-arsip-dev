@@ -1,5 +1,9 @@
 import api from "@/lib/axios";
 import {
+  deriveDocumentFileName,
+  toPreviewableFileUrl,
+} from "@/lib/utils/file";
+import {
   extractList,
   extractRecord,
   readNullableString,
@@ -36,7 +40,7 @@ function readDispositions(record: UnknownRecord): string[] {
       return (
         readString(item, "receiver_name", "receiverName") ??
         (receiverRecord
-          ? readString(receiverRecord, "name", "username", "email")
+          ? readString(receiverRecord, "name", "username")
           : null) ??
         readString(item, "receiver_id", "receiverId") ??
         "-"
@@ -77,7 +81,7 @@ function readDispositionHistory(record: UnknownRecord): SuratDisposisi[] {
         dari_user_nama:
           readString(normalized, "sender_name", "senderName") ??
           (senderRecord
-            ? readString(senderRecord, "name", "username", "email")
+            ? readString(senderRecord, "name", "username")
             : null) ??
           senderId ??
           "-",
@@ -85,7 +89,7 @@ function readDispositionHistory(record: UnknownRecord): SuratDisposisi[] {
         ke_user_nama:
           readString(normalized, "receiver_name", "receiverName") ??
           (receiverRecord
-            ? readString(receiverRecord, "name", "username", "email")
+            ? readString(receiverRecord, "name", "username")
             : null) ??
           receiverId ??
           "-",
@@ -99,6 +103,10 @@ function readDispositionHistory(record: UnknownRecord): SuratDisposisi[] {
             "start_date",
             "startDate",
           ) ?? new Date().toISOString(),
+        start_date:
+          readNullableString(normalized, "start_date", "startDate") ?? null,
+        due_date:
+          readNullableString(normalized, "due_date", "dueDate") ?? null,
         is_disposisi_ulang:
           index > 0 ||
           Boolean(readNullableString(normalized, "start_date", "startDate")),
@@ -131,54 +139,21 @@ function mapSuratMasuk(record: UnknownRecord, index = 0): SuratMasuk | null {
       return normalizedRight - normalizedLeft;
     },
   );
-
-  const sortedDispositionMails = (
-    Array.isArray(record.disposition_mails) ? record.disposition_mails : []
-  )
-    .slice()
-    .sort((a, b) => {
-      const aRecord = asRecord(a);
-      const bRecord = asRecord(b);
-      const aTimeStr = aRecord
-        ? (readString(aRecord, "created_at", "disposed_at") ?? "")
-        : "";
-      const bTimeStr = bRecord
-        ? (readString(bRecord, "created_at", "disposed_at") ?? "")
-        : "";
-      const aTime = new Date(aTimeStr).getTime();
-      const bTime = new Date(bTimeStr).getTime();
-      const normalizedA = Number.isNaN(aTime) ? 0 : aTime;
-      const normalizedB = Number.isNaN(bTime) ? 0 : bTime;
-      return normalizedB - normalizedA;
-    });
-  const firstDispositionMail =
-    sortedDispositionMails.length > 0
-      ? asRecord(sortedDispositionMails[0])
-      : null;
-
-  const sortedDispositions = (
-    Array.isArray(record.dispositions) ? record.dispositions : []
-  )
-    .slice()
-    .sort((a, b) => {
-      const aRecord = asRecord(a);
-      const bRecord = asRecord(b);
-      const aTimeStr = aRecord
-        ? (readString(aRecord, "created_at", "disposed_at") ?? "")
-        : "";
-      const bTimeStr = bRecord
-        ? (readString(bRecord, "created_at", "disposed_at") ?? "")
-        : "";
-      const aTime = new Date(aTimeStr).getTime();
-      const bTime = new Date(bTimeStr).getTime();
-      const normalizedA = Number.isNaN(aTime) ? 0 : aTime;
-      const normalizedB = Number.isNaN(bTime) ? 0 : bTime;
-      return normalizedB - normalizedA;
-    });
-  const firstDisposition =
-    sortedDispositions.length > 0 ? asRecord(sortedDispositions[0]) : null;
+  const latestDispositionWithDueDate =
+    disposisiHistory.find((item) => item.due_date) ?? null;
+  const latestDispositionWithNote =
+    disposisiHistory.find((item) => item.catatan) ?? null;
   const description = readNullableString(record, "description", "keterangan");
   const fileValue = readNullableString(record, "file", "file_url", "fileUrl");
+  const fallbackFileName = fileValue
+    ? deriveDocumentFileName(
+        fileValue,
+        `surat-masuk-${mailNumber ?? regarding ?? id}`,
+      )
+    : "";
+  const previewableFileUrl = fileValue
+    ? toPreviewableFileUrl(fileValue, fallbackFileName)
+    : undefined;
   const rawStatus = record.status;
   const numericStatus =
     typeof rawStatus === "number"
@@ -228,24 +203,16 @@ function mapSuratMasuk(record: UnknownRecord, index = 0): SuratMasuk | null {
           ? "DIDISPOSISI"
           : "BARU",
     disposisi_history: disposisiHistory,
-    fileName: fileValue ?? "",
-    fileUrl: fileValue,
+    fileName: fallbackFileName,
+    fileUrl: previewableFileUrl,
     tenggatWaktu:
       readNullableString(record, "due_date", "dueDate") ??
-      (firstDispositionMail
-        ? readNullableString(firstDispositionMail, "due_date", "dueDate")
-        : undefined) ??
-      (firstDisposition
-        ? readNullableString(firstDisposition, "due_date", "dueDate")
-        : undefined),
+      latestDispositionWithDueDate?.due_date ??
+      undefined,
     keteranganTenggat:
       readNullableString(record, "note", "catatan") ??
-      (firstDispositionMail
-        ? readNullableString(firstDispositionMail, "note", "catatan")
-        : undefined) ??
-      (firstDisposition
-        ? readNullableString(firstDisposition, "note", "catatan")
-        : undefined),
+      latestDispositionWithNote?.catatan ??
+      undefined,
   };
 }
 
@@ -291,7 +258,7 @@ export const suratMasukService = {
       dari_user_nama:
         readString(record, "sender_name", "senderName") ??
         (senderRecord
-          ? readString(senderRecord, "name", "username", "email")
+          ? readString(senderRecord, "name", "username")
           : null) ??
         senderId ??
         "-",
@@ -299,7 +266,7 @@ export const suratMasukService = {
       ke_user_nama:
         readString(record, "receiver_name", "receiverName") ??
         (receiverRecord
-          ? readString(receiverRecord, "name", "username", "email")
+          ? readString(receiverRecord, "name", "username")
           : null) ??
         receiverId ??
         "-",
@@ -313,6 +280,10 @@ export const suratMasukService = {
           "start_date",
           "startDate",
         ) ?? new Date().toISOString(),
+      start_date:
+        readNullableString(record, "start_date", "startDate") ?? null,
+      due_date:
+        readNullableString(record, "due_date", "dueDate") ?? null,
       is_disposisi_ulang: true,
     };
   },

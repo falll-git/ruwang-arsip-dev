@@ -15,6 +15,8 @@ export interface SuratDisposisi {
   ke_user_nama: string;
   catatan: string | null;
   created_at: string;
+  start_date: string | null;
+  due_date: string | null;
   is_disposisi_ulang: boolean;
 }
 

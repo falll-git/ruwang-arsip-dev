@@ -6,6 +6,7 @@ import { Send, UploadCloud } from "lucide-react";
 import FeatureHeader from "@/components/ui/FeatureHeader";
 import DatePickerInput from "@/components/ui/DatePickerInput";
 import { useAppToast } from "@/components/ui/AppToastProvider";
+import { readFileAsBase64 } from "@/lib/utils/file";
 import { letterPriorityService } from "@/services/letter-priority.service";
 import { toApiDateTime } from "@/services/api.utils";
 import { suratKeluarService } from "@/services/surat-keluar.service";
@@ -139,13 +140,14 @@ export default function InputSuratKeluarPage() {
     setIsLoading(true);
 
     try {
+      const encodedFile = file ? await readFileAsBase64(file) : "";
       await suratKeluarService.create({
         letter_prioritie_id: formData.sifatSurat,
         delivery_media: normalizeMediaValue(formData.mediaPengiriman),
         send_date: toApiDateTime(formData.tanggalPengiriman),
         mail_number: formData.namaSurat.trim(),
         name: formData.namaPenerima.trim(),
-        file: file.name,
+        file: encodedFile,
         status: 1,
         address: formData.alamatPenerima.trim(),
       });

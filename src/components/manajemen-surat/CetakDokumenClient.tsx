@@ -377,7 +377,7 @@ export default function CetakDokumenClient() {
     }
 
     if (!isValidFileUrl(selectedRecord.fileUrl)) {
-      showToast("File dokumen belum tersedia dari server.", "warning");
+      showToast("File dokumen belum tersedia.", "warning");
       return;
     }
 
@@ -394,7 +394,7 @@ export default function CetakDokumenClient() {
     }
 
     if (!isValidFileUrl(selectedRecord.fileUrl)) {
-      showToast("File dokumen belum tersedia untuk dicetak.", "warning");
+      showToast("File dokumen belum tersedia.", "warning");
       return;
     }
 
@@ -916,9 +916,6 @@ export default function CetakDokumenClient() {
                     <h3 className="text-base font-semibold text-gray-900">
                       File dokumen belum tersedia
                     </h3>
-                    <p className="mt-1 max-w-sm text-sm text-gray-500">
-                      coming soon
-                    </p>
                   </div>
                 )}
               </div>

@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 
 import NewtonsCradleLoader from "@/components/ui/NewtonsCradleLoader";
+import { detectDocumentFileType } from "@/lib/utils/file";
 
 export type DocumentPreviewFileType = "pdf" | "image";
 
@@ -66,7 +67,7 @@ export function DocumentPreviewProvider({
   const openPreview = useCallback(
     (fileUrl: string, fileName: string, fileType?: DocumentPreviewFileType) => {
       const normalizedType =
-        fileType ?? (fileUrl.toLowerCase().endsWith(".pdf") ? "pdf" : "image");
+        fileType ?? detectDocumentFileType(fileUrl, fileName);
 
       const safeBaseName = (fileName || "document")
         .trim()

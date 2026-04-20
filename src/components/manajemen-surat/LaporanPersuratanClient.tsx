@@ -846,8 +846,8 @@ export default function LaporanPersuratanClient() {
 
   const handlePreviewDocument = useCallback(
     (fileUrl: string | undefined, fileName: string) => {
-      if (!fileUrl) {
-        showToast("File dokumen belum tersedia dari server.", "warning");
+      if (!isValidFileUrl(fileUrl)) {
+        showToast("File dokumen belum tersedia.", "warning");
         return;
       }
 

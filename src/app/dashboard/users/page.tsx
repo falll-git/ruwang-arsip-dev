@@ -303,24 +303,6 @@ export default function ManajemenUserPage() {
     const normalizedUsername = formData.username.trim().toLowerCase();
     const normalizedEmail = formData.email.trim().toLowerCase();
 
-    const usernameTaken = users.some((user) => {
-      if (editUser && user.id === editUser.id) return false;
-      return user.username.toLowerCase() === normalizedUsername;
-    });
-    if (usernameTaken) {
-      showToast("Username sudah digunakan.", "warning");
-      return;
-    }
-
-    const emailTaken = users.some((user) => {
-      if (editUser && user.id === editUser.id) return false;
-      return user.email.toLowerCase() === normalizedEmail;
-    });
-    if (emailTaken) {
-      showToast("Email sudah digunakan.", "warning");
-      return;
-    }
-
     const nextAppRole = mapRoleLikeToAppRole(roleNameById.get(formData.role_id));
     if (
       editUser &&

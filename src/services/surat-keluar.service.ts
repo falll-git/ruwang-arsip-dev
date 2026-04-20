@@ -1,5 +1,9 @@
 import api from "@/lib/axios";
 import {
+  deriveDocumentFileName,
+  toPreviewableFileUrl,
+} from "@/lib/utils/file";
+import {
   extractList,
   extractRecord,
   readNullableString,
@@ -43,6 +47,12 @@ function mapSuratKeluar(
   if (!sendDate || !recipientName || !mailNumber) return null;
 
   const fileValue = readNullableString(record, "file");
+  const fallbackFileName = fileValue
+    ? deriveDocumentFileName(fileValue, `surat-keluar-${mailNumber}`)
+    : "";
+  const previewableFileUrl = fileValue
+    ? toPreviewableFileUrl(fileValue, fallbackFileName)
+    : undefined;
   const sifatSurat =
     (letterPriorityRecord ? readString(letterPriorityRecord, "name") : null) ??
     "Biasa";
@@ -63,8 +73,8 @@ function mapSuratKeluar(
           : normalizedSifat === "terbatas"
             ? "Terbatas"
             : "Biasa",
-    fileName: fileValue ?? "",
-    fileUrl: fileValue,
+    fileName: fallbackFileName,
+    fileUrl: previewableFileUrl,
     letterPrioritieId: readString(record, "letter_prioritie_id") ?? undefined,
     statusCode,
     statusLabel: formatOutgoingStatusLabel(statusCode),
