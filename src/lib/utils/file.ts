@@ -1,5 +1,23 @@
 export type DocumentFileType = "pdf" | "image";
 
+const PERSURATAN_MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+const PERSURATAN_ALLOWED_FILE_EXTENSIONS = new Set([
+  "pdf",
+  "doc",
+  "docx",
+  "jpg",
+  "jpeg",
+  "png",
+]);
+const PERSURATAN_ALLOWED_FILE_MIME_TYPES = new Set([
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+]);
+
 const MIME_EXTENSION_MAP: Record<string, string> = {
   "application/pdf": "pdf",
   "image/png": "png",
@@ -24,6 +42,16 @@ function normalizeFileNameBase(value: string) {
     .replace(/^-|-$/g, "");
 }
 
+function inferExtensionFromFileName(fileName?: string | null): string | null {
+  if (typeof fileName !== "string" || !fileName.trim()) return null;
+
+  const normalized = fileName.trim().toLowerCase();
+  const segments = normalized.split(".");
+  const extension = segments.at(-1);
+
+  return extension && extension !== normalized ? extension : null;
+}
+
 function inferMimeTypeFromFileName(fileName?: string | null): string | null {
   if (typeof fileName !== "string" || !fileName.trim()) return null;
 
@@ -39,6 +67,41 @@ function inferMimeTypeFromFileName(fileName?: string | null): string | null {
   if (normalized.endsWith(".svg")) return "image/svg+xml";
 
   return null;
+}
+
+export function validatePersuratanFile(file: File): string | null {
+  if (!(file instanceof File)) {
+    return "File yang dipilih tidak valid.";
+  }
+
+  if (file.size <= 0) {
+    return "File yang dipilih kosong atau rusak.";
+  }
+
+  if (file.size > PERSURATAN_MAX_FILE_SIZE_BYTES) {
+    return "Ukuran file maksimal 10MB.";
+  }
+
+  const normalizedMimeType = file.type.trim().toLowerCase();
+  const extension = inferExtensionFromFileName(file.name);
+
+  if (normalizedMimeType && PERSURATAN_ALLOWED_FILE_MIME_TYPES.has(normalizedMimeType)) {
+    return null;
+  }
+
+  if (
+    extension &&
+    PERSURATAN_ALLOWED_FILE_EXTENSIONS.has(extension) &&
+    (!normalizedMimeType || normalizedMimeType === "application/octet-stream")
+  ) {
+    return null;
+  }
+
+  if (extension && PERSURATAN_ALLOWED_FILE_EXTENSIONS.has(extension)) {
+    return null;
+  }
+
+  return "Format file harus PDF, DOC, DOCX, JPG, JPEG, atau PNG.";
 }
 
 function inferMimeTypeFromBase64(base64: string): string | null {
@@ -167,6 +230,12 @@ export function detectDocumentFileType(
 
 export function readFileAsBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
+    const validationMessage = validatePersuratanFile(file);
+    if (validationMessage) {
+      reject(new Error(validationMessage));
+      return;
+    }
+
     const reader = new FileReader();
 
     reader.onload = () => {

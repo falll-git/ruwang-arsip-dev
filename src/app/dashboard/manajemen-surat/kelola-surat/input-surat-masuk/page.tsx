@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, Inbox, Search, Send, UploadCloud } from "lucide-react";
+import { AlertCircle, Inbox, Search, Send, UploadCloud, X } from "lucide-react";
 import FeatureHeader from "@/components/ui/FeatureHeader";
 import DatePickerInput from "@/components/ui/DatePickerInput";
 import { useAppToast } from "@/components/ui/AppToastProvider";
 import UiverseCheckbox from "@/components/ui/UiverseCheckbox";
 import { useAuth } from "@/components/auth/AuthProvider";
 import TenggatWaktuModal from "@/components/surat/TenggatWaktuModal";
-import { readFileAsBase64 } from "@/lib/utils/file";
+import { readFileAsBase64, validatePersuratanFile } from "@/lib/utils/file";
 import { toApiDateTime } from "@/services/api.utils";
 import { letterPriorityService } from "@/services/letter-priority.service";
 import { suratMasukService } from "@/services/surat-masuk.service";
@@ -127,7 +127,17 @@ export default function InputSuratMasukPage() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
+      const nextFile = e.target.files[0];
+      const validationMessage = validatePersuratanFile(nextFile);
+
+      if (validationMessage) {
+        e.target.value = "";
+        setFile(null);
+        showToast(validationMessage, "error");
+        return;
+      }
+
+      setFile(nextFile);
     }
   };
 
@@ -135,7 +145,16 @@ export default function InputSuratMasukPage() {
     e.preventDefault();
     setDragOver(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      setFile(e.dataTransfer.files[0]);
+      const nextFile = e.dataTransfer.files[0];
+      const validationMessage = validatePersuratanFile(nextFile);
+
+      if (validationMessage) {
+        setFile(null);
+        showToast(validationMessage, "error");
+        return;
+      }
+
+      setFile(nextFile);
     }
   };
 
@@ -221,6 +240,12 @@ export default function InputSuratMasukPage() {
       return;
     }
 
+    const fileValidationMessage = validatePersuratanFile(file);
+    if (fileValidationMessage) {
+      showToast(fileValidationMessage, "error");
+      return;
+    }
+
     if (selectedDisposisi.length === 0) {
       showToast("Wajib memilih minimal satu tujuan disposisi.", "error");
       return;
@@ -266,7 +291,7 @@ export default function InputSuratMasukPage() {
     () =>
       disposisiUsers
         .filter((item) => selectedDisposisi.includes(item.id))
-        .map((item) => ({ id: item.id, nama: item.nama })),
+        .map((item) => ({ id: item.id, nama: item.nama, divisi: item.divisi })),
     [disposisiUsers, selectedDisposisi],
   );
   const shouldScrollDisposisi = filteredDisposisiUsers.length > 5;
@@ -556,20 +581,24 @@ export default function InputSuratMasukPage() {
                 </div>
               )}
               {selectedDisposisiUsers.length > 0 && (
-                <p className="mt-2 text-sm text-gray-500 truncate">
-                  {selectedDisposisiUsers.length} dipilih:{" "}
-                  {selectedDisposisiUsers.map((user, index) => (
-                    <span key={user.id}>
-                      <span
-                        onClick={() => handleDisposisiToggle(user.id)}
-                        className="cursor-pointer hover:line-through"
-                      >
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {selectedDisposisiUsers.map((user) => (
+                    <button
+                      key={user.id}
+                      type="button"
+                      onClick={() => handleDisposisiToggle(user.id)}
+                      className="group inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 shadow-sm transition hover:border-[#157ec3] hover:bg-[rgba(21,126,195,0.04)] hover:shadow-[0_0_0_3px_rgba(21,126,195,0.08)]"
+                    >
+                      <span className="max-w-[180px] truncate">
                         {user.nama}
                       </span>
-                      {index < selectedDisposisiUsers.length - 1 ? ", " : ""}
-                    </span>
+                      <X
+                        className="h-3.5 w-3.5 text-red-500 transition group-hover:text-red-600"
+                        aria-hidden="true"
+                      />
+                    </button>
                   ))}
-                </p>
+                </div>
               )}
               {selectedDisposisi.length === 0 && (
                 <div className="flex items-center gap-2 mt-2 text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-lg">

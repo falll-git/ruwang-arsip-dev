@@ -147,6 +147,17 @@ export default function SetupDivisiPage() {
       return;
     }
 
+    const duplicateDivision = divisions.some(
+      (item) =>
+        item.id !== editingId &&
+        item.name.trim().toLowerCase() === nama.toLowerCase(),
+    );
+
+    if (duplicateDivision) {
+      showToast("Nama divisi sudah digunakan.", "warning");
+      return;
+    }
+
     setIsSaving(true);
     try {
       if (editingId) {

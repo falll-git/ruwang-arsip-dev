@@ -66,9 +66,15 @@ const PILL_BASE_CLASS =
   "inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold";
 const ACTION_ICON_BUTTON_CLASS =
   "rounded-lg p-2 transition-colors";
+const MIN_USER_PASSWORD_LENGTH = 8;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function normalizeTextInput(value: string) {
   return value.trim().replace(/\s+/g, " ");
+}
+
+function isValidEmail(value: string) {
+  return EMAIL_PATTERN.test(value);
 }
 
 function getRolePillClass(role: Role | null) {
@@ -302,6 +308,50 @@ export default function ManajemenUserPage() {
 
     const normalizedUsername = formData.username.trim().toLowerCase();
     const normalizedEmail = formData.email.trim().toLowerCase();
+    const hasPasswordInput = formData.password.length > 0;
+
+    if (!isValidEmail(normalizedEmail)) {
+      showToast("Format email belum valid.", "warning");
+      return;
+    }
+
+    const duplicateUsername = users.some(
+      (user) =>
+        user.id !== editUser?.id &&
+        user.username.trim().toLowerCase() === normalizedUsername,
+    );
+
+    if (duplicateUsername) {
+      showToast("Username sudah digunakan.", "warning");
+      return;
+    }
+
+    const duplicateEmail = users.some(
+      (user) =>
+        user.id !== editUser?.id &&
+        user.email.trim().toLowerCase() === normalizedEmail,
+    );
+
+    if (duplicateEmail) {
+      showToast("Email sudah digunakan.", "warning");
+      return;
+    }
+
+    if (hasPasswordInput && !/\S/.test(formData.password)) {
+      showToast("Password tidak boleh hanya berisi spasi.", "warning");
+      return;
+    }
+
+    if (
+      hasPasswordInput &&
+      formData.password.length < MIN_USER_PASSWORD_LENGTH
+    ) {
+      showToast(
+        `Password minimal ${MIN_USER_PASSWORD_LENGTH} karakter.`,
+        "warning",
+      );
+      return;
+    }
 
     const nextAppRole = mapRoleLikeToAppRole(roleNameById.get(formData.role_id));
     if (
@@ -326,7 +376,7 @@ export default function ManajemenUserPage() {
         is_restrict: formData.is_restrict,
         role_id: formData.role_id,
         division_id: formData.division_id,
-        ...(formData.password ? { password: formData.password } : {}),
+        ...(hasPasswordInput ? { password: formData.password } : {}),
       };
 
       const savedUser = editUser

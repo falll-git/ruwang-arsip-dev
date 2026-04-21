@@ -177,6 +177,28 @@ export default function SetupJenisDokumenPage() {
       return;
     }
 
+    const duplicateCode = jenisDokumen.some(
+      (item) =>
+        item.id !== editingId &&
+        item.kode.trim().toUpperCase() === kode,
+    );
+
+    if (duplicateCode) {
+      showToast("Kode jenis dokumen sudah digunakan.", "warning");
+      return;
+    }
+
+    const duplicateName = jenisDokumen.some(
+      (item) =>
+        item.id !== editingId &&
+        item.nama.trim().toLowerCase() === nama.toLowerCase(),
+    );
+
+    if (duplicateName) {
+      showToast("Nama jenis dokumen sudah digunakan.", "warning");
+      return;
+    }
+
     setIsSaving(true);
 
     try {

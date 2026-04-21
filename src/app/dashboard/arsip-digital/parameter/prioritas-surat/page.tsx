@@ -151,6 +151,17 @@ export default function SetupPrioritasSuratPage() {
       return;
     }
 
+    const duplicatePriority = priorities.some(
+      (item) =>
+        item.id !== editingId &&
+        item.name.trim().toLowerCase() === nama.toLowerCase(),
+    );
+
+    if (duplicatePriority) {
+      showToast("Nama prioritas surat sudah digunakan.", "warning");
+      return;
+    }
+
     setIsSaving(true);
     try {
       if (editingId) {

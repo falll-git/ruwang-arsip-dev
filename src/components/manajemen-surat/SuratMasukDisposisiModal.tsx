@@ -199,12 +199,21 @@ export default function SuratMasukDisposisiModal({
                 />
               </div>
               {selectedUser ? (
-                <p className="mt-2 text-xs text-gray-500">
-                  Tujuan terpilih:{" "}
-                  <span className="font-semibold text-gray-700">
-                    {selectedUser.nama}
-                  </span>
-                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onChangeSelectedUser("")}
+                    className="group inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 shadow-sm transition hover:border-[#157ec3] hover:bg-[rgba(21,126,195,0.04)] hover:shadow-[0_0_0_3px_rgba(21,126,195,0.08)]"
+                  >
+                    <span className="max-w-[200px] truncate">
+                      {selectedUser.nama}
+                    </span>
+                    <X
+                      className="h-3.5 w-3.5 text-red-500 transition group-hover:text-red-600"
+                      aria-hidden="true"
+                    />
+                  </button>
+                </div>
               ) : null}
             </div>
 

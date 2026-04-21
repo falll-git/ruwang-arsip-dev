@@ -1,28 +1,33 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowUpDown,
   FileText,
-  Inbox,
+  LoaderCircle,
   Printer,
   Search,
   SearchX,
-  Send,
 } from "lucide-react";
+import { Document, Page, pdfjs } from "react-pdf";
 
 import { type Memorandum, type SuratKeluar, type SuratMasuk } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { useAppToast } from "@/components/ui/AppToastProvider";
 import { useDocumentPreviewContext } from "@/components/ui/DocumentPreviewContext";
 import { formatDate, parseDateString } from "@/lib/utils/date";
-import { isValidFileUrl } from "@/lib/utils/file";
+import { detectDocumentFileType, isValidFileUrl } from "@/lib/utils/file";
 import { printDocument } from "@/lib/utils/printDocument";
 import DocumentViewButton from "@/components/manajemen-surat/DocumentViewButton";
 import { memorandumService } from "@/services/memorandum.service";
 import { suratKeluarService } from "@/services/surat-keluar.service";
 import { suratMasukService } from "@/services/surat-masuk.service";
 import { userService } from "@/services/user.service";
+
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  "pdfjs-dist/build/pdf.worker.min.mjs",
+  import.meta.url,
+).toString();
 
 type DocumentKind = "surat-masuk" | "surat-keluar" | "memorandum";
 
@@ -126,6 +131,134 @@ function getSearchPlaceholder(activeKind: DocumentKind) {
 function formatDocumentFileName(value: string) {
   const normalized = value.trim();
   return normalized ? normalized : "Belum tersedia";
+}
+
+function MiniPdfPreview({
+  fileUrl,
+  fileName,
+}: {
+  fileUrl?: string;
+  fileName: string;
+}) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [pageWidth, setPageWidth] = useState(520);
+  const [pageCount, setPageCount] = useState(0);
+  const [hasError, setHasError] = useState(false);
+  const fileType = detectDocumentFileType(fileUrl, fileName);
+
+  useEffect(() => {
+    if (!isValidFileUrl(fileUrl)) return;
+
+    const element = containerRef.current;
+    if (!element) return;
+
+    const updateWidth = () => {
+      setPageWidth(Math.max(280, Math.floor(element.clientWidth)));
+    };
+
+    updateWidth();
+
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, [fileUrl]);
+
+  useEffect(() => {
+    setPageCount(0);
+    setHasError(false);
+  }, [fileUrl]);
+
+  if (!isValidFileUrl(fileUrl)) {
+    return (
+      <div className="flex min-h-[720px] items-center justify-center rounded-[24px] bg-[#f4f6fb] px-6 text-center">
+        <div>
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-sm">
+            <FileText className="h-7 w-7 text-gray-400" aria-hidden="true" />
+          </div>
+          <p className="text-base font-semibold text-gray-900">
+            File dokumen belum tersedia
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (fileType === "image") {
+    return (
+      <div className="rounded-[24px] bg-[#f4f6fb] p-4">
+        <div className="max-h-[78vh] overflow-y-auto overflow-x-hidden rounded-[20px] bg-[#eef2f7] p-4">
+          <div className="mx-auto w-full max-w-[560px] rounded-[20px] bg-white p-3 shadow-sm ring-1 ring-gray-200">
+            <img
+              src={fileUrl}
+              alt={formatDocumentFileName(fileName)}
+              className="h-auto w-full rounded-[16px] object-contain"
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-[24px] bg-[#f4f6fb] p-4">
+      <div className="max-h-[78vh] overflow-y-auto overflow-x-hidden rounded-[20px] bg-[#eef2f7] p-4">
+        <div ref={containerRef} className="mx-auto flex w-full max-w-[560px] flex-col gap-4">
+          <Document
+            file={fileUrl}
+            loading={
+              <div className="flex min-h-[720px] items-center justify-center rounded-[20px] bg-white shadow-sm ring-1 ring-gray-200">
+                <div className="flex flex-col items-center gap-3 text-gray-500">
+                  <LoaderCircle className="h-8 w-8 animate-spin text-primary-600" />
+                  <p className="text-sm font-medium">Memuat preview dokumen...</p>
+                </div>
+              </div>
+            }
+            onLoadSuccess={({ numPages }: { numPages: number }) => {
+              setPageCount(numPages);
+              setHasError(false);
+            }}
+            onLoadError={() => {
+              setHasError(true);
+            }}
+            error={
+              <div className="flex min-h-[720px] items-center justify-center rounded-[20px] bg-white px-6 text-center shadow-sm ring-1 ring-gray-200">
+                <div>
+                  <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-gray-100">
+                    <FileText className="h-7 w-7 text-gray-400" aria-hidden="true" />
+                  </div>
+                  <p className="text-base font-semibold text-gray-900">
+                    Preview dokumen belum bisa ditampilkan
+                  </p>
+                </div>
+              </div>
+            }
+          >
+            {hasError
+              ? null
+              : Array.from({ length: pageCount || 1 }, (_, index) => (
+                  <div
+                    key={`${fileName}-page-${index + 1}`}
+                    className="overflow-hidden rounded-[20px] bg-white shadow-sm ring-1 ring-gray-200"
+                  >
+                    <Page
+                      pageNumber={index + 1}
+                      width={pageWidth}
+                      renderTextLayer={false}
+                      renderAnnotationLayer={false}
+                      loading={
+                        <div className="flex min-h-[720px] items-center justify-center">
+                          <LoaderCircle className="h-7 w-7 animate-spin text-primary-600" />
+                        </div>
+                      }
+                    />
+                  </div>
+                ))}
+          </Document>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function CetakDokumenClient() {
@@ -428,7 +561,7 @@ export default function CetakDokumenClient() {
                 type="text"
                 value={searchValue}
                 onChange={(event) => setSearchValue(event.target.value)}
-                className="input input-with-icon"
+                className="input input-with-icon bg-white"
                 placeholder={getSearchPlaceholder(activeKind)}
               />
             </div>
@@ -443,7 +576,7 @@ export default function CetakDokumenClient() {
               onChange={(event) =>
                 setActiveKind(event.target.value as DocumentKind)
               }
-              className="select"
+              className="select bg-white"
             >
               <option value="surat-masuk">Surat Masuk</option>
               <option value="surat-keluar">Surat Keluar</option>
@@ -467,7 +600,7 @@ export default function CetakDokumenClient() {
                     event.target.value as "tanggal-desc" | "tanggal-asc",
                   )
                 }
-                className="select input-with-icon"
+                className="select input-with-icon bg-white"
               >
                 {SORT_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -480,9 +613,9 @@ export default function CetakDokumenClient() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(360px,420px)]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(420px,600px)]">
         <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-          <div className="border-b border-gray-100 bg-gray-50/70 px-5 py-4">
+          <div className="border-b border-gray-100 bg-white px-5 py-4">
             <p className="text-center text-sm font-semibold text-gray-900">
               Menampilkan {filteredRecords.length} dokumen
             </p>
@@ -507,7 +640,7 @@ export default function CetakDokumenClient() {
           ) : filteredRecords.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full text-left">
-                <thead className="border-b border-gray-200 bg-white">
+                <thead className="border-b border-gray-200 bg-gray-50">
                   <tr>
                     <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
                       No
@@ -716,209 +849,13 @@ export default function CetakDokumenClient() {
           )}
         </div>
 
-        <div className="self-start rounded-2xl border border-gray-200 bg-white p-5 shadow-sm xl:sticky xl:top-24">
+        <div className="self-start rounded-2xl border border-gray-200 bg-white p-4 shadow-sm xl:sticky xl:top-24">
           {selectedRecord ? (
-            <div className="space-y-5">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900">
-                    {selectedRecord.subject}
-                  </h2>
-                  <p className="mt-1 text-sm font-semibold text-gray-900">
-                    {selectedRecord.code} -{" "}
-                    {formatDate(selectedRecord.sortDate)}
-                  </p>
-                </div>
-                <div
-                  className="flex h-12 w-12 items-center justify-center rounded-2xl text-white shadow-md"
-                  style={{
-                    background:
-                      "linear-gradient(135deg, #157ec3 0%, #0d5a8f 100%)",
-                  }}
-                >
-                  {selectedRecord.kind === "surat-masuk" ? (
-                    <Inbox className="h-5 w-5" aria-hidden="true" />
-                  ) : selectedRecord.kind === "surat-keluar" ? (
-                    <Send className="h-5 w-5" aria-hidden="true" />
-                  ) : (
-                    <FileText className="h-5 w-5" aria-hidden="true" />
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {selectedRecord.kind === "surat-masuk" ? (
-                  <>
-                    <DetailField
-                      label="Nama Pengirim"
-                      value={selectedRecord.record.pengirim}
-                    />
-                    <DetailField
-                      label="Tanggal Penerimaan"
-                      value={formatDate(selectedRecord.record.tanggalTerima)}
-                    />
-                    <DetailField
-                      label="Alamat Pengirim"
-                      value={selectedRecord.record.alamatPengirim}
-                      className="sm:col-span-2"
-                    />
-                    <DetailField
-                      label="Nama / Nomor Surat"
-                      value={selectedRecord.record.namaSurat}
-                      mono
-                    />
-                    <DetailField
-                      label="Sifat Surat"
-                      value={selectedRecord.record.sifat}
-                      valueClassName={
-                        selectedRecord.record.sifat !== "Biasa"
-                          ? "font-semibold text-red-600"
-                          : "font-semibold text-gray-900"
-                      }
-                    />
-                    <DetailField
-                      label="Perihal Surat"
-                      value={selectedRecord.record.perihal}
-                      className="sm:col-span-2"
-                    />
-                    <DetailField
-                      label="Keterangan Surat"
-                      value={selectedRecord.record.keterangan ?? "-"}
-                      className="sm:col-span-2"
-                    />
-                    <DetailField
-                      label="Catatan Disposisi"
-                      value={selectedRecord.record.keteranganTenggat ?? "-"}
-                      className="sm:col-span-2"
-                    />
-                    <DetailField
-                      label="Tenggat Waktu"
-                      value={
-                        selectedRecord.record.tenggatWaktu
-                          ? formatDate(selectedRecord.record.tenggatWaktu)
-                          : "-"
-                      }
-                    />
-                    <DetailField
-                      label="Disposisi Kepada"
-                      value={selectedRecord.record.disposisiKepada.join(", ")}
-                      className="sm:col-span-2"
-                    />
-                    <DetailField
-                      label="Status Disposisi"
-                      value={selectedRecord.record.statusDisposisi}
-                      className="sm:col-span-2"
-                    />
-                  </>
-                ) : selectedRecord.kind === "surat-keluar" ? (
-                  <>
-                    <DetailField
-                      label="Nama Penerima"
-                      value={selectedRecord.record.penerima}
-                    />
-                    <DetailField
-                      label="Tanggal Pengiriman"
-                      value={formatDate(selectedRecord.record.tanggalKirim)}
-                    />
-                    <DetailField
-                      label="Alamat Penerima"
-                      value={selectedRecord.record.alamatPenerima}
-                      className="sm:col-span-2"
-                    />
-                    <DetailField
-                      label="Nama / Nomor Surat"
-                      value={selectedRecord.record.namaSurat}
-                      mono
-                    />
-                    <DetailField
-                      label="Media Pengiriman"
-                      value={selectedRecord.record.media}
-                    />
-                    <DetailField
-                      label="Sifat Surat"
-                      value={selectedRecord.record.sifat}
-                      valueClassName={
-                        selectedRecord.record.sifat !== "Biasa"
-                          ? "font-semibold text-red-600"
-                          : "font-semibold text-gray-900"
-                      }
-                    />
-                    <DetailField
-                      label="Status"
-                      value={selectedRecord.record.statusLabel}
-                    />
-                  </>
-                ) : (
-                  <>
-                    <DetailField
-                      label="No Memo"
-                      value={selectedRecord.record.noMemo}
-                      mono
-                    />
-                    <DetailField
-                      label="Tanggal Memo"
-                      value={formatDate(selectedRecord.record.tanggal)}
-                    />
-                    <DetailField
-                      label="Divisi Pengirim"
-                      value={selectedRecord.record.divisiPengirim}
-                    />
-                    <DetailField
-                      label="Pembuat Memo"
-                      value={selectedRecord.record.pembuatMemo}
-                    />
-                    <DetailField
-                      label="Perihal Memo"
-                      value={selectedRecord.record.perihal}
-                      className="sm:col-span-2"
-                    />
-                    <DetailField
-                      label="Keterangan Memo"
-                      value={selectedRecord.record.keterangan}
-                      className="sm:col-span-2"
-                    />
-                    <DetailField
-                      label="Tenggat Waktu"
-                      value={
-                        selectedRecord.record.tenggatWaktu
-                          ? formatDate(selectedRecord.record.tenggatWaktu)
-                          : "-"
-                      }
-                    />
-                    <DetailField
-                      label="Catatan Redisposisi"
-                      value={selectedRecord.record.keteranganTenggat ?? "-"}
-                    />
-                    <DetailField
-                      label="Penerima Memo"
-                      value={selectedRecord.record.penerima.join(", ")}
-                      className="sm:col-span-2"
-                    />
-                  </>
-                )}
-              </div>
-
-              <div className="overflow-hidden rounded-2xl border border-gray-200 bg-gray-50">
-                {isValidFileUrl(selectedRecord.fileUrl) ? (
-                  <iframe
-                    src={`${selectedRecord.fileUrl}#toolbar=0&navpanes=0&scrollbar=1`}
-                    title={`Preview ${formatDocumentFileName(selectedRecord.fileName)}`}
-                    className="h-[360px] w-full bg-white"
-                  />
-                ) : (
-                  <div className="flex h-[360px] flex-col items-center justify-center px-6 text-center">
-                    <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-gray-100">
-                      <FileText
-                        className="h-7 w-7 text-gray-400"
-                        aria-hidden="true"
-                      />
-                    </div>
-                    <h3 className="text-base font-semibold text-gray-900">
-                      File dokumen belum tersedia
-                    </h3>
-                  </div>
-                )}
-              </div>
+            <div className="space-y-4">
+              <MiniPdfPreview
+                fileUrl={selectedRecord.fileUrl}
+                fileName={selectedRecord.fileName}
+              />
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <DocumentViewButton
@@ -959,37 +896,6 @@ export default function CetakDokumenClient() {
           )}
         </div>
       </div>
-    </div>
-  );
-}
-
-function DetailField({
-  label,
-  value,
-  className,
-  mono = false,
-  valueClassName,
-}: {
-  label: string;
-  value: string;
-  className?: string;
-  mono?: boolean;
-  valueClassName?: string;
-}) {
-  return (
-    <div
-      className={`rounded-xl border border-gray-100 bg-gray-50 p-4 ${className ?? ""}`}
-    >
-      <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-        {label}
-      </p>
-      <p
-        className={`mt-2 text-sm leading-relaxed ${mono ? "tabular-nums" : ""} ${
-          valueClassName ?? "font-semibold text-gray-900"
-        }`}
-      >
-        {value}
-      </p>
     </div>
   );
 }

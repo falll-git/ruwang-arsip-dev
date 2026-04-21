@@ -208,6 +208,19 @@ export default function SetupTempatPenyimpananPage() {
       return;
     }
 
+    const duplicateStorage = tempatPenyimpanan.some(
+      (item) =>
+        item.id !== editingId &&
+        item.kodeKantor.trim().toUpperCase() === kodeKantor &&
+        item.kodeLemari.trim().toUpperCase() === kodeLemari &&
+        item.rak.trim().toLowerCase() === rak.toLowerCase(),
+    );
+
+    if (duplicateStorage) {
+      showToast("Kombinasi kantor, lemari, dan rak sudah digunakan.", "warning");
+      return;
+    }
+
     setIsSaving(true);
 
     try {

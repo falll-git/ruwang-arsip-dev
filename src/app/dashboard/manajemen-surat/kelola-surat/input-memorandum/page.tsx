@@ -8,6 +8,7 @@ import {
   UploadCloud,
   User,
   Send,
+  X,
 } from "lucide-react";
 import DatePickerInput from "@/components/ui/DatePickerInput";
 import { useAppToast } from "@/components/ui/AppToastProvider";
@@ -15,7 +16,7 @@ import FeatureHeader from "@/components/ui/FeatureHeader";
 import UiverseCheckbox from "@/components/ui/UiverseCheckbox";
 import TenggatWaktuModal from "@/components/surat/TenggatWaktuModal";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { readFileAsBase64 } from "@/lib/utils/file";
+import { readFileAsBase64, validatePersuratanFile } from "@/lib/utils/file";
 import { toApiDateTime } from "@/services/api.utils";
 import { divisionService } from "@/services/division.service";
 import { memorandumService } from "@/services/memorandum.service";
@@ -151,7 +152,17 @@ export default function InputMemorandumPage() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
+      const nextFile = e.target.files[0];
+      const validationMessage = validatePersuratanFile(nextFile);
+
+      if (validationMessage) {
+        e.target.value = "";
+        setFile(null);
+        showToast(validationMessage, "error");
+        return;
+      }
+
+      setFile(nextFile);
     }
   };
 
@@ -159,7 +170,16 @@ export default function InputMemorandumPage() {
     e.preventDefault();
     setDragOver(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      setFile(e.dataTransfer.files[0]);
+      const nextFile = e.dataTransfer.files[0];
+      const validationMessage = validatePersuratanFile(nextFile);
+
+      if (validationMessage) {
+        setFile(null);
+        showToast(validationMessage, "error");
+        return;
+      }
+
+      setFile(nextFile);
     }
   };
 
@@ -185,6 +205,12 @@ export default function InputMemorandumPage() {
 
     if (!file) {
       showToast("File memorandum wajib diupload!", "error");
+      return;
+    }
+
+    const fileValidationMessage = validatePersuratanFile(file);
+    if (fileValidationMessage) {
+      showToast(fileValidationMessage, "error");
       return;
     }
 
@@ -386,7 +412,7 @@ export default function InputMemorandumPage() {
                   required
                   readOnly
                   disabled={isLoading}
-                  className="input input-with-icon !cursor-default !bg-gray-50"
+                  className="input input-with-icon !cursor-default !bg-white !text-gray-700"
                   placeholder="Nama pembuat memo"
                 />
               </div>
@@ -563,20 +589,24 @@ export default function InputMemorandumPage() {
                 </div>
               )}
               {selectedUserItems.length > 0 && (
-                <p className="mt-2 text-sm text-gray-500 truncate">
-                  {selectedUserItems.length} dipilih:{" "}
-                  {selectedUserItems.map((userOption, index) => (
-                    <span key={userOption.id}>
-                      <span
-                        onClick={() => handleUserToggle(userOption.id)}
-                        className="cursor-pointer hover:line-through"
-                      >
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {selectedUserItems.map((userOption) => (
+                    <button
+                      key={userOption.id}
+                      type="button"
+                      onClick={() => handleUserToggle(userOption.id)}
+                      className="group inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 shadow-sm transition hover:border-[#157ec3] hover:bg-[rgba(21,126,195,0.04)] hover:shadow-[0_0_0_3px_rgba(21,126,195,0.08)]"
+                    >
+                      <span className="max-w-[180px] truncate">
                         {userOption.nama}
                       </span>
-                      {index < selectedUserItems.length - 1 ? ", " : ""}
-                    </span>
+                      <X
+                        className="h-3.5 w-3.5 text-red-500 transition group-hover:text-red-600"
+                        aria-hidden="true"
+                      />
+                    </button>
                   ))}
-                </p>
+                </div>
               )}
               {!isPenerimaTerpilih && (
                 <div className="flex items-center gap-2 mt-2 text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-lg">

@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Send, UploadCloud } from "lucide-react";
 
 import FeatureHeader from "@/components/ui/FeatureHeader";
 import DatePickerInput from "@/components/ui/DatePickerInput";
 import { useAppToast } from "@/components/ui/AppToastProvider";
-import { readFileAsBase64 } from "@/lib/utils/file";
+import { readFileAsBase64, validatePersuratanFile } from "@/lib/utils/file";
 import { letterPriorityService } from "@/services/letter-priority.service";
 import { toApiDateTime } from "@/services/api.utils";
 import { suratKeluarService } from "@/services/surat-keluar.service";
@@ -84,13 +84,6 @@ export default function InputSuratKeluarPage() {
     };
   }, [showToast]);
 
-  const selectedPriorityName = useMemo(
-    () =>
-      letterPriorities.find((priority) => priority.id === formData.sifatSurat)
-        ?.name ?? "",
-    [formData.sifatSurat, letterPriorities],
-  );
-
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
@@ -102,7 +95,17 @@ export default function InputSuratKeluarPage() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
+      const nextFile = e.target.files[0];
+      const validationMessage = validatePersuratanFile(nextFile);
+
+      if (validationMessage) {
+        e.target.value = "";
+        setFile(null);
+        showToast(validationMessage, "error");
+        return;
+      }
+
+      setFile(nextFile);
     }
   };
 
@@ -110,7 +113,16 @@ export default function InputSuratKeluarPage() {
     e.preventDefault();
     setDragOver(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      setFile(e.dataTransfer.files[0]);
+      const nextFile = e.dataTransfer.files[0];
+      const validationMessage = validatePersuratanFile(nextFile);
+
+      if (validationMessage) {
+        setFile(null);
+        showToast(validationMessage, "error");
+        return;
+      }
+
+      setFile(nextFile);
     }
   };
 
@@ -134,6 +146,12 @@ export default function InputSuratKeluarPage() {
 
     if (!file) {
       showToast("File arsip wajib diupload!", "error");
+      return;
+    }
+
+    const fileValidationMessage = validatePersuratanFile(file);
+    if (fileValidationMessage) {
+      showToast(fileValidationMessage, "error");
       return;
     }
 
@@ -309,11 +327,6 @@ export default function InputSuratKeluarPage() {
                     </option>
                   ))}
                 </select>
-                {selectedPriorityName ? (
-                  <p className="mt-2 text-xs text-gray-500">
-                    Sifat terpilih: {selectedPriorityName}
-                  </p>
-                ) : null}
               </div>
             </div>
           </div>

@@ -561,7 +561,7 @@ function ReportSectionShell({
                 type="text"
                 value={searchValue}
                 onChange={(event) => onSearchChange(event.target.value)}
-                className="input input-with-icon"
+                className="input input-with-icon bg-white"
                 placeholder={searchPlaceholder}
               />
             </div>
@@ -581,7 +581,7 @@ function ReportSectionShell({
                 onChange={(event) =>
                   onSortChange(event.target.value as SortValue)
                 }
-                className="select input-with-icon"
+                className="select input-with-icon bg-white"
                 aria-label={`Urutkan ${title}`}
               >
                 <option value="terbaru">Terbaru</option>
