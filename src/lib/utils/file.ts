@@ -152,9 +152,10 @@ export function isValidFileUrl(url?: string | null): url is string {
   }
 
   const trimmed = url.trim();
+  const isRawBase64 = looksLikeBase64(trimmed);
   if (trimmed.startsWith("http://")) return true;
   if (trimmed.startsWith("https://")) return true;
-  if (trimmed.startsWith("/")) return true;
+  if (trimmed.startsWith("/") && !isRawBase64) return true;
   if (trimmed.startsWith("blob:")) return true;
   if (trimmed.startsWith("data:")) return true;
   return false;
@@ -185,14 +186,19 @@ export function deriveDocumentFileName(
 
   if (typeof value === "string" && value.trim()) {
     const trimmed = value.trim();
+    const isRawBase64 = looksLikeBase64(trimmed);
 
-    if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("/")) {
+    if (
+      trimmed.startsWith("http://") ||
+      trimmed.startsWith("https://") ||
+      (trimmed.startsWith("/") && !isRawBase64)
+    ) {
       const normalized = trimmed.split("#")[0].split("?")[0];
       const fileName = normalized.split("/").filter(Boolean).pop();
       if (fileName) return decodeURIComponent(fileName);
     }
 
-    if (!trimmed.startsWith("data:") && !looksLikeBase64(trimmed)) {
+    if (!trimmed.startsWith("data:") && !isRawBase64) {
       return trimmed;
     }
 
